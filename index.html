@@ -66,7 +66,7 @@
         <i class="fa-solid fa-book-bookmark text-indigo-500"></i> <span id="txt-tab-library">Libreria Esempi (250)</span>
       </button>
       <button onclick="switchTab('guide')" id="tab-guide" class="py-3.5 px-2 text-slate-500 hover:text-indigo-600 transition font-medium flex items-center gap-2 text-sm whitespace-nowrap">
-        <i class="fa-solid fa-circle-info text-sky-500"></i> <span id="txt-tab-guide">Come funziona il Metodo</span>
+        <i class="fa-solid fa-circle-info text-sky-500"></i> <span id="txt-tab-guide">Come funciona il Metodo</span>
       </button>
     </div>
   </div>
@@ -790,7 +790,7 @@
             en: `Draft an official institutional decree, circular, or policy for ${t.titleEN}.`
           },
           vincoli: {
-            it: "Linguaggio burocratico e formale impecabile. Includi riferimenti normativi vigenti e struttura con Oggetto, Visti e Dispositivo.",
+            it: "Linguaggio burocratico e formale impeccabile. Includi riferimenti normativi vigenti e struttura con Oggetto, Visti e Dispositivo.",
             en: "Impeccable formal administrative language. Cite statutory codes with clear Preamble and Order sections."
           },
           output: {
@@ -1339,16 +1339,16 @@
       const allPill = document.createElement('button');
       allPill.className = `subcat-filter-btn px-2.5 py-1 rounded-md border text-xs font-medium transition ${activeSubCatFilter === 'all' ? 'subcat-btn-active' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`;
       allPill.innerText = t.subcatAll;
-      allPill.onclick = () => setSubCatFilter('all', allPill);
+      allPill.onclick = (e) => setSubCatFilter('all', e.target);
       container.appendChild(allPill);
 
-      subCats.forEach(sub => {
-        const displayName = currentLang === 'en' && subCatTranslations.en[sub] ? subCatTranslations.en[sub] : sub;
-        const pill = document.createElement('button');
-        pill.className = `subcat-filter-btn px-2.5 py-1 rounded-md border text-xs font-medium transition ${activeSubCatFilter === sub ? 'subcat-btn-active' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`;
-        pill.innerText = displayName;
-        pill.onclick = () => setSubCatFilter(sub, pill);
-        container.appendChild(pill);
+      subCats.forEach(sc => {
+        const btn = document.createElement('button');
+        const displaySub = (currentLang === 'en' && subCatTranslations.en[sc]) ? subCatTranslations.en[sc] : sc;
+        btn.className = `subcat-filter-btn px-2.5 py-1 rounded-md border text-xs font-medium transition ${activeSubCatFilter === sc ? 'subcat-btn-active' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`;
+        btn.innerText = displaySub;
+        btn.onclick = (e) => setSubCatFilter(sc, e.target);
+        container.appendChild(btn);
       });
     }
 
@@ -1356,120 +1356,147 @@
       activeRoleFilter = 'all';
       activeSubCatFilter = 'all';
       document.getElementById('library-search').value = '';
-      
-      const allBtn = document.getElementById('filter-role-all');
-      setRoleFilter('all', allBtn);
+
+      const allRoleBtn = document.getElementById('filter-role-all');
+      if (allRoleBtn) setRoleFilter('all', allRoleBtn);
+      else filterLibrary();
     }
 
-    // Filter and Render Preset Grid Cards
+    function loadPresetIntoBuilder(presetId) {
+      const p = presetLibrary.find(item => item.id === presetId);
+      if (!p) return;
+
+      document.getElementById('input-ruolo').value = p.ruolo[currentLang] || p.ruolo.it;
+      document.getElementById('input-contesto').value = p.contesto[currentLang] || p.contesto.it;
+      document.getElementById('input-obiettivo').value = p.obiettivo[currentLang] || p.obiettivo.it;
+      document.getElementById('input-vincoli').value = p.vincoli[currentLang] || p.vincoli.it;
+      document.getElementById('input-output').value = p.output[currentLang] || p.output.it;
+
+      switchTab('builder');
+      updatePrompt();
+      showToast(i18n[currentLang].toastLoaded);
+    }
+
+    function copyPresetDirect(presetId) {
+      const p = presetLibrary.find(item => item.id === presetId);
+      if (!p) return;
+
+      const t = i18n[currentLang];
+      const r = p.ruolo[currentLang] || p.ruolo.it;
+      const c = p.contesto[currentLang] || p.contesto.it;
+      const o1 = p.obiettivo[currentLang] || p.obiettivo.it;
+      const v = p.vincoli[currentLang] || p.vincoli.it;
+      const o2 = p.output[currentLang] || p.output.it;
+
+      const fullPrompt = `${t.promptPrefixR}\n${r}\n\n${t.promptPrefixC}\n${c}\n\n${t.promptPrefixO1}\n${o1}\n\n${t.promptPrefixV}\n${v}\n\n${t.promptPrefixO2}\n${o2}`;
+
+      navigator.clipboard.writeText(fullPrompt).then(() => {
+        showToast(i18n[currentLang].toastCopied);
+      });
+    }
+
     function filterLibrary() {
-      const searchTerm = document.getElementById('library-search').value.toLowerCase().trim();
+      const query = document.getElementById('library-search').value.toLowerCase().trim();
       const grid = document.getElementById('library-grid');
       grid.innerHTML = '';
 
       const filtered = presetLibrary.filter(item => {
         // Role match
         if (activeRoleFilter !== 'all' && item.roleCategory !== activeRoleFilter) return false;
+
         // Subcategory match
         if (activeSubCatFilter !== 'all' && item.subCategory !== activeSubCatFilter) return false;
 
-        // Search Match
-        if (searchTerm) {
-          const title = (item.title[currentLang] || item.title['it']).toLowerCase();
-          const r = (item.ruolo[currentLang] || item.ruolo['it']).toLowerCase();
-          const c = (item.contesto[currentLang] || item.contesto['it']).toLowerCase();
-          const o1 = (item.obiettivo[currentLang] || item.obiettivo['it']).toLowerCase();
-          const sub = item.subCategory.toLowerCase();
-          return title.includes(searchTerm) || r.includes(searchTerm) || c.includes(searchTerm) || o1.includes(searchTerm) || sub.includes(searchTerm);
+        // Search match
+        if (query) {
+          const title = (item.title[currentLang] || item.title.it).toLowerCase();
+          const ruolo = (item.ruolo[currentLang] || item.ruolo.it).toLowerCase();
+          const contesto = (item.contesto[currentLang] || item.contesto.it).toLowerCase();
+          const obiettivo = (item.obiettivo[currentLang] || item.obiettivo.it).toLowerCase();
+          const vincoli = (item.vincoli[currentLang] || item.vincoli.it).toLowerCase();
+          const output = (item.output[currentLang] || item.output.it).toLowerCase();
+          const subCategory = item.subCategory.toLowerCase();
+
+          return title.includes(query) || ruolo.includes(query) || contesto.includes(query) ||
+                 obiettivo.includes(query) || vincoli.includes(query) || output.includes(query) || subCategory.includes(query);
         }
 
         return true;
       });
 
-      // Update counter
-      document.getElementById('results-count').innerText = i18n[currentLang].resultsCount(filtered.length, presetLibrary.length);
+      // Update Result Counter
+      const counterText = i18n[currentLang].resultsCount(filtered.length, presetLibrary.length);
+      document.getElementById('results-count').innerText = counterText;
+
+      const t = i18n[currentLang];
 
       // Render Cards
-      const t = i18n[currentLang];
-      filtered.forEach(item => {
-        const itemTitle = item.title[currentLang] || item.title['it'];
-        const itemRole = item.badge[currentLang] || item.badge['it'];
-        const itemSubCat = currentLang === 'en' && subCatTranslations.en[item.subCategory] ? subCatTranslations.en[item.subCategory] : item.subCategory;
-        const itemR = item.ruolo[currentLang] || item.ruolo['it'];
-        const itemC = item.contesto[currentLang] || item.contesto['it'];
-        const itemO1 = item.obiettivo[currentLang] || item.obiettivo['it'];
+      filtered.forEach(p => {
+        const title = p.title[currentLang] || p.title.it;
+        const subDisplay = (currentLang === 'en' && subCatTranslations.en[p.subCategory]) ? subCatTranslations.en[p.subCategory] : p.subCategory;
+        const badgeDisplay = p.badge[currentLang] || p.badge.it;
+
+        const ruoloText = p.ruolo[currentLang] || p.ruolo.it;
+        const contestoText = p.contesto[currentLang] || p.contesto.it;
+        const obiettivoText = p.obiettivo[currentLang] || p.obiettivo.it;
+        const vincoliText = p.vincoli[currentLang] || p.vincoli.it;
+        const outputText = p.output[currentLang] || p.output.it;
 
         const card = document.createElement('div');
         card.className = "bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4";
+        
         card.innerHTML = `
           <div class="space-y-3">
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-              <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold uppercase tracking-wide border border-indigo-100">
-                ${itemRole}
-              </span>
-              <span class="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                ${itemSubCat}
-              </span>
+            <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div>
+                <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100 mb-1">
+                  ${badgeDisplay} • ${subDisplay}
+                </span>
+                <h3 class="font-bold text-slate-800 text-sm sm:text-base leading-snug">${title}</h3>
+              </div>
             </div>
-            <h3 class="font-bold text-slate-900 text-base leading-snug">${itemTitle}</h3>
-            
-            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs text-slate-600 font-mono">
-              <p><strong class="text-blue-600">R:</strong> ${itemR}</p>
-              <p><strong class="text-emerald-600">C:</strong> ${itemC}</p>
-              <p><strong class="text-amber-600">O:</strong> ${itemO1}</p>
+
+            <!-- Full R-C-O-V-O Structure Display -->
+            <div class="space-y-2 text-xs font-mono bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+              <div class="text-slate-700">
+                <span class="inline-block px-1.5 py-0.5 bg-blue-600 text-white font-sans text-[10px] font-bold rounded mr-1">R</span>
+                <strong class="text-blue-900 font-sans">${t.promptPrefixR}</strong> ${ruoloText}
+              </div>
+              <div class="text-slate-700">
+                <span class="inline-block px-1.5 py-0.5 bg-emerald-600 text-white font-sans text-[10px] font-bold rounded mr-1">C</span>
+                <strong class="text-emerald-900 font-sans">${t.promptPrefixC}</strong> ${contestoText}
+              </div>
+              <div class="text-slate-700">
+                <span class="inline-block px-1.5 py-0.5 bg-amber-600 text-white font-sans text-[10px] font-bold rounded mr-1">O</span>
+                <strong class="text-amber-900 font-sans">${t.promptPrefixO1}</strong> ${obiettivoText}
+              </div>
+              <div class="text-slate-700">
+                <span class="inline-block px-1.5 py-0.5 bg-rose-600 text-white font-sans text-[10px] font-bold rounded mr-1">V</span>
+                <strong class="text-rose-900 font-sans">${t.promptPrefixV}</strong> ${vincoliText}
+              </div>
+              <div class="text-slate-700">
+                <span class="inline-block px-1.5 py-0.5 bg-purple-600 text-white font-sans text-[10px] font-bold rounded mr-1">O</span>
+                <strong class="text-purple-900 font-sans">${t.promptPrefixO2}</strong> ${outputText}
+              </div>
             </div>
           </div>
 
-          <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-            <button onclick="loadPresetIntoBuilder('${item.id}')" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition flex items-center gap-1.5">
-              <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i>
-              <span>${t.useTemplate}</span>
+          <!-- Actions -->
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button onclick="copyPresetDirect('${p.id}')" class="px-3 py-1.5 text-xs border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition font-medium flex items-center gap-1.5">
+              <i class="fa-regular fa-copy text-slate-500"></i> ${t.copyTemplate}
             </button>
-            <button onclick="copyPresetDirectly('${item.id}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition flex items-center gap-1.5">
-              <i class="fa-regular fa-copy text-xs"></i>
-              <span>${t.copyTemplate}</span>
+            <button onclick="loadPresetIntoBuilder('${p.id}')" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition font-semibold flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-sliders text-xs"></i> ${t.useTemplate}
             </button>
           </div>
         `;
+
         grid.appendChild(card);
       });
     }
 
-    // Load Specific Preset into Prompt Builder
-    function loadPresetIntoBuilder(presetId) {
-      const item = presetLibrary.find(i => i.id === presetId);
-      if (!item) return;
-
-      document.getElementById('input-ruolo').value = item.ruolo[currentLang] || item.ruolo['it'];
-      document.getElementById('input-contesto').value = item.contesto[currentLang] || item.contesto['it'];
-      document.getElementById('input-obiettivo').value = item.obiettivo[currentLang] || item.obiettivo['it'];
-      document.getElementById('input-vincoli').value = item.vincoli[currentLang] || item.vincoli['it'];
-      document.getElementById('input-output').value = item.output[currentLang] || item.output['it'];
-
-      updatePrompt();
-      switchTab('builder');
-      showToast(i18n[currentLang].toastLoaded);
-    }
-
-    // Copy Full Formatted Preset Direct from Library Card
-    function copyPresetDirectly(presetId) {
-      const item = presetLibrary.find(i => i.id === presetId);
-      if (!item) return;
-
-      const t = i18n[currentLang];
-      const r = item.ruolo[currentLang] || item.ruolo['it'];
-      const c = item.contesto[currentLang] || item.contesto['it'];
-      const o1 = item.obiettivo[currentLang] || item.obiettivo['it'];
-      const v = item.vincoli[currentLang] || item.vincoli['it'];
-      const o2 = item.output[currentLang] || item.output['it'];
-
-      const formatted = `${t.promptPrefixR}\n${r}\n\n${t.promptPrefixC}\n${c}\n\n${t.promptPrefixO1}\n${o1}\n\n${t.promptPrefixV}\n${v}\n\n${t.promptPrefixO2}\n${o2}`;
-      navigator.clipboard.writeText(formatted).then(() => {
-        showToast(i18n[currentLang].toastCopied);
-      });
-    }
-
-    // Initialization on DOM Load
+    // Initialize Application
     document.addEventListener('DOMContentLoaded', () => {
       const savedLang = localStorage.getItem('school_prompt_lang') || 'it';
       setLanguage(savedLang);
@@ -1477,3 +1504,4 @@
   </script>
 </body>
 </html>
+
